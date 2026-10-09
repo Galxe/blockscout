@@ -108,5 +108,22 @@ defmodule BlockScoutWeb.API.V2.Gravity.BridgeDepositControllerTest do
         assert %{"gravity_bridge_deposits_count" => 2} = json_response(request, 200)
       end
     end
+
+    describe "/addresses/{address_hash}/coin-balance-history" do
+      test "links the balance change at a deposit block to the mint transaction", %{conn: conn} do
+        deposit = insert(:gravity_bridge_deposit)
+
+        insert(:fetched_balance,
+          address_hash: deposit.recipient_address_hash,
+          block_number: deposit.block_number,
+          value_fetched_at: DateTime.utc_now()
+        )
+
+        request = get(conn, "/api/v2/addresses/#{deposit.recipient_address_hash}/coin-balance-history")
+
+        assert %{"items" => [item]} = json_response(request, 200)
+        assert item["transaction_hash"] == to_string(deposit.transaction_hash)
+      end
+    end
   end
 end

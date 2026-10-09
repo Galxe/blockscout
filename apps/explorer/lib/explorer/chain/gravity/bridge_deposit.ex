@@ -126,6 +126,18 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
     |> consensus_query()
   end
 
+  @doc """
+  Query of the transaction that credited `address_hash` at `block_number`.
+  """
+  @spec transaction_hash_query(Hash.Address.t(), non_neg_integer()) :: Ecto.Query.t()
+  def transaction_hash_query(address_hash, block_number) do
+    __MODULE__
+    |> where([deposit], deposit.recipient_address_hash == ^address_hash and deposit.block_number == ^block_number)
+    |> consensus_query()
+    |> select([deposit], deposit.transaction_hash)
+    |> limit(1)
+  end
+
   defp list(query, options) do
     paging_options = Keyword.get(options, :paging_options, Chain.default_paging_options())
     necessity_by_association = Keyword.get(options, :necessity_by_association, %{})
