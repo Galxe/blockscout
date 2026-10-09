@@ -59,5 +59,41 @@ defmodule BlockScoutWeb.API.V2.Gravity.BridgeDepositControllerTest do
         assert %{"items" => []} = json_response(request, 200)
       end
     end
+
+    describe "/transactions/{transaction_hash}/gravity/bridge-deposits" do
+      test "returns every credit of the transaction, newest log first", %{conn: conn} do
+        transaction = insert(:transaction) |> with_block()
+
+        for log_index <- [3, 4] do
+          insert(:gravity_bridge_deposit,
+            block_hash: transaction.block_hash,
+            block_number: transaction.block_number,
+            transaction_hash: transaction.hash,
+            log_index: log_index
+          )
+        end
+
+        insert(:gravity_bridge_deposit)
+
+        request = get(conn, "/api/v2/transactions/#{transaction.hash}/gravity/bridge-deposits")
+
+        assert %{"items" => [%{"log_index" => 4}, %{"log_index" => 3}], "next_page_params" => nil} =
+                 json_response(request, 200)
+      end
+
+      test "returns 404 for an unknown transaction", %{conn: conn} do
+        transaction = build(:transaction)
+
+        request = get(conn, "/api/v2/transactions/#{transaction.hash}/gravity/bridge-deposits")
+
+        assert json_response(request, 404)
+      end
+
+      test "returns 422 on an invalid hash", %{conn: conn} do
+        request = get(conn, "/api/v2/transactions/0x/gravity/bridge-deposits")
+
+        assert json_response(request, 422)
+      end
+    end
   end
 end

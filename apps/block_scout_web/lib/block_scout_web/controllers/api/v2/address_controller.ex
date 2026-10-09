@@ -41,6 +41,7 @@ defmodule BlockScoutWeb.API.V2.AddressController do
     BlockView,
     Ethereum.DepositController,
     Ethereum.DepositView,
+    Gravity.BridgeDepositController,
     InternalTransactionsPendingStatusHelper,
     TransactionView,
     WithdrawalView
@@ -59,7 +60,6 @@ defmodule BlockScoutWeb.API.V2.AddressController do
   alias BlockScoutWeb.API.V2.CeloView
   alias Explorer.Chain.Celo.ElectionReward, as: CeloElectionReward
 
-  alias BlockScoutWeb.API.V2.Gravity.BridgeDepositController
   alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
 
   alias Indexer.Fetcher.OnDemand.CoinBalance, as: CoinBalanceOnDemand

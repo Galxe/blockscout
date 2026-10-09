@@ -52,6 +52,7 @@ defmodule BlockScoutWeb.API.V2.TransactionController do
     BlobView,
     Ethereum.DepositController,
     Ethereum.DepositView,
+    Gravity.BridgeDepositController,
     InternalTransactionsPendingStatusHelper
   }
 
@@ -65,6 +66,7 @@ defmodule BlockScoutWeb.API.V2.TransactionController do
   alias Explorer.Chain.Beacon.Reader, as: BeaconReader
   alias Explorer.Chain.Cache.Counters.{NewPendingTransactionsCount, Transactions24hCount}
   alias Explorer.Chain.{FheOperation, Hash, SmartContract, Transaction}
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
   alias Explorer.Chain.Optimism.TransactionBatch, as: OptimismTransactionBatch
   alias Explorer.Chain.Scroll.Reader, as: ScrollReader
   alias Explorer.Chain.Token.Instance
@@ -1268,6 +1270,39 @@ defmodule BlockScoutWeb.API.V2.TransactionController do
         deposits: deposits |> maybe_preload_ens_and_metadata(),
         next_page_params: next_page_params
       })
+    end
+  end
+
+  operation :gravity_bridge_deposits,
+    summary: "List Gravity bridge deposits in a transaction",
+    description: "Retrieves native G credited by the Gravity bridge (NativeMinted events) in a specific transaction.",
+    parameters: [transaction_hash_param() | base_params()] ++ define_paging_params(["block_number", "index"]),
+    responses: [
+      ok:
+        {"Gravity bridge deposits for the transaction.", "application/json",
+         paginated_response(
+           items: Schemas.Gravity.BridgeDeposit,
+           next_page_params_example: %{"block_number" => 44_675_449, "index" => 3}
+         )},
+      not_found: NotFoundResponse.response(),
+      unprocessable_entity: JsonErrorResponse.response()
+    ]
+
+  @doc """
+  Handles `api/v2/transactions/:transaction_hash_param/gravity/bridge-deposits`.
+  """
+  @spec gravity_bridge_deposits(Plug.Conn.t(), map()) ::
+          {:format, :error}
+          | {:not_found, {:error, :not_found}}
+          | {:restricted_access, true}
+          | Plug.Conn.t()
+  def gravity_bridge_deposits(conn, %{transaction_hash_param: transaction_hash_string} = params) do
+    with {:ok, _transaction, transaction_hash} <- validate_transaction(transaction_hash_string, params) do
+      BridgeDepositController.render_list(
+        conn,
+        params,
+        &GravityBridgeDeposit.from_transaction_hash(transaction_hash, &1)
+      )
     end
   end
 

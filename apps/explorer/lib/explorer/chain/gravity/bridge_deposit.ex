@@ -104,6 +104,18 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
     |> list(options)
   end
 
+  @doc """
+  Lists deposits credited by `transaction_hash`, newest log first.
+  """
+  @spec from_transaction_hash(Hash.Full.t(), [
+          Chain.paging_options() | Chain.necessity_by_association() | Chain.api?()
+        ]) :: [t()]
+  def from_transaction_hash(transaction_hash, options \\ []) do
+    __MODULE__
+    |> where([deposit], deposit.transaction_hash == ^transaction_hash)
+    |> list(options)
+  end
+
   defp list(query, options) do
     paging_options = Keyword.get(options, :paging_options, Chain.default_paging_options())
     necessity_by_association = Keyword.get(options, :necessity_by_association, %{})
