@@ -25,10 +25,11 @@ defmodule Indexer.Fetcher.Gravity.BridgeDeposits do
   @batch_size 500
 
   @enforce_keys [:contract_address_hash]
-  defstruct [:contract_address_hash, interval: @interval, batch_size: @batch_size]
+  defstruct [:contract_address_hash, :json_rpc_named_arguments, interval: @interval, batch_size: @batch_size]
 
   @type t :: %__MODULE__{
           contract_address_hash: Hash.Address.t(),
+          json_rpc_named_arguments: EthereumJSONRPC.json_rpc_named_arguments() | nil,
           interval: non_neg_integer(),
           batch_size: pos_integer()
         }
@@ -38,16 +39,52 @@ defmodule Indexer.Fetcher.Gravity.BridgeDeposits do
   end
 
   @impl GenServer
-  def init(_init_opts) do
+  def init(init_opts) do
     Logger.metadata(fetcher: :gravity_bridge_deposits)
 
-    # A wrong address would silently index nothing, so a misconfiguration stops the fetcher at start.
-    {:ok, contract_address_hash} =
-      Hash.Address.cast(Application.get_env(:indexer, __MODULE__)[:contract_address])
+    contract_address = Application.get_env(:indexer, __MODULE__)[:contract_address]
 
-    Process.send_after(self(), :process_logs, @interval)
+    contract_address_hash =
+      case Hash.Address.cast(contract_address) do
+        {:ok, contract_address_hash} ->
+          contract_address_hash
 
-    {:ok, %__MODULE__{contract_address_hash: contract_address_hash}}
+        :error ->
+          raise ArgumentError,
+                "INDEXER_GRAVITY_BRIDGE_CONTRACT must be an address, got: #{inspect(contract_address)}"
+      end
+
+    {:ok,
+     %__MODULE__{
+       contract_address_hash: contract_address_hash,
+       json_rpc_named_arguments: init_opts[:json_rpc_named_arguments]
+     }, {:continue, :check_contract_code}}
+  end
+
+  # A well-formed but wrong address (e.g. the mainnet default on a testnet)
+  # would index nothing without any error, so an address without code is
+  # reported and the fetcher stays idle.
+  @impl GenServer
+  def handle_continue(:check_contract_code, %__MODULE__{contract_address_hash: contract_address_hash} = state) do
+    address = to_string(contract_address_hash)
+
+    case EthereumJSONRPC.fetch_codes([%{block_quantity: "latest", address: address}], state.json_rpc_named_arguments) do
+      {:ok, %{params_list: [%{code: "0x"}]}} ->
+        Logger.error(
+          "No contract code at the Gravity bridge receiver #{address}; check INDEXER_GRAVITY_BRIDGE_CONTRACT. " <>
+            "Bridge deposits will not be indexed."
+        )
+
+      {:ok, %{params_list: [_]}} ->
+        send(self(), :process_logs)
+
+      # The node being briefly unavailable must not stop indexing for good.
+      other ->
+        Logger.warning("Could not check the Gravity bridge receiver code at #{address}: #{inspect(other)}")
+        send(self(), :process_logs)
+    end
+
+    {:noreply, state}
   end
 
   @impl GenServer

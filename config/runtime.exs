@@ -1815,7 +1815,8 @@ config :indexer, Indexer.Fetcher.Beacon.Deposit.Status,
 config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits.Supervisor, disabled?: ConfigHelper.chain_type() != :gravity
 
 config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits,
-  contract_address: System.get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
+  contract_address:
+    ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
 
 config :indexer, Indexer.Fetcher.Shibarium.L1,
   rpc: System.get_env("INDEXER_SHIBARIUM_L1_RPC"),

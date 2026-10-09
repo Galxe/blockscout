@@ -4,6 +4,7 @@ defmodule Explorer.Chain.Gravity.BridgeDepositTest do
   use Utils.CompileTimeEnvHelper, chain_type: [:explorer, :chain_type]
 
   alias Explorer.Chain.{Block, Hash, Transaction}
+  alias Explorer.Chain.Cache.BackgroundMigrations
   alias Explorer.Chain.Gravity.BridgeDeposit
 
   @contract_address "0x595475934ed7d9faa7fca28341c2ce583904a44e"
@@ -91,6 +92,49 @@ defmodule Explorer.Chain.Gravity.BridgeDepositTest do
         insert_bridge_log(older, address: contract, index: 2)
 
         assert [%{index: 2}, %{index: 7}] = BridgeDeposit.unprocessed_logs(hash, 2)
+      end
+
+      # After the 12.x upgrade the historical backfill runs while the logs
+      # optimized-fields migration is still in progress.
+      test "finds migrated and not yet migrated logs while the logs migration is running", %{
+        contract: contract,
+        contract_address_hash: hash
+      } do
+        set_fill_logs_optimized_fields_migration_started()
+
+        transaction = insert(:transaction) |> with_block()
+        insert_bridge_log(transaction, address: contract, address_hash: nil, index: 1)
+        insert_bridge_log(transaction, address: contract, address_mapping: nil, index: 2)
+        insert_bridge_log(transaction, address: contract, address_mapping: nil, index: 3)
+
+        insert(:gravity_bridge_deposit,
+          block_hash: transaction.block_hash,
+          block_number: transaction.block_number,
+          transaction_hash: transaction.hash,
+          log_index: 3
+        )
+
+        assert [%{index: 1}, %{index: 2}] = BridgeDeposit.unprocessed_logs(hash, 10)
+        assert [%{index: 1}] = BridgeDeposit.unprocessed_logs(hash, 1)
+      end
+
+      test "finds logs once the logs migration has finished", %{contract: contract, contract_address_hash: hash} do
+        initial_finished? = BackgroundMigrations.get_fill_logs_optimized_fields_finished()
+        BackgroundMigrations.set_fill_logs_optimized_fields_finished(true)
+        on_exit(fn -> BackgroundMigrations.set_fill_logs_optimized_fields_finished(initial_finished?) end)
+
+        transaction = insert(:transaction) |> with_block()
+        insert_bridge_log(transaction, address: contract, address_hash: nil, index: 1)
+        insert_bridge_log(transaction, address: contract, address_hash: nil, index: 2)
+
+        insert(:gravity_bridge_deposit,
+          block_hash: transaction.block_hash,
+          block_number: transaction.block_number,
+          transaction_hash: transaction.hash,
+          log_index: 1
+        )
+
+        assert [%{index: 2}] = BridgeDeposit.unprocessed_logs(hash, 10)
       end
     end
   end

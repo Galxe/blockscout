@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: LicenseRef-Blockscout
 defmodule Indexer.Fetcher.Gravity.BridgeDepositsTest do
+  use EthereumJSONRPC.Case, async: false
   use Explorer.DataCase, async: false
   use Utils.CompileTimeEnvHelper, chain_type: [:explorer, :chain_type]
 
   import ExUnit.CaptureLog, only: [capture_log: 1]
+  import Mox
+
+  setup :verify_on_exit!
 
   alias Explorer.Chain.{Address, Data, Hash}
   alias Explorer.Chain.Address.CoinBalance
@@ -141,7 +145,47 @@ defmodule Indexer.Fetcher.Gravity.BridgeDepositsTest do
       Application.put_env(:indexer, BridgeDeposits, Keyword.merge(initial || [], contract_address: "0x1234"))
       on_exit(fn -> Application.put_env(:indexer, BridgeDeposits, initial) end)
 
-      assert_raise MatchError, fn -> BridgeDeposits.init([]) end
+      assert_raise ArgumentError, ~r/INDEXER_GRAVITY_BRIDGE_CONTRACT/, fn -> BridgeDeposits.init([]) end
+    end
+
+    test "does not start processing when the bridge contract has no code", %{
+      state: state,
+      json_rpc_named_arguments: json_rpc_named_arguments
+    } do
+      expect_contract_code("0x")
+      state = %{state | json_rpc_named_arguments: json_rpc_named_arguments}
+
+      log =
+        capture_log(fn ->
+          assert {:noreply, ^state} = BridgeDeposits.handle_continue(:check_contract_code, state)
+        end)
+
+      assert log =~ "INDEXER_GRAVITY_BRIDGE_CONTRACT"
+      refute_received :process_logs
+    end
+
+    test "starts processing when the bridge contract has code", %{
+      state: state,
+      json_rpc_named_arguments: json_rpc_named_arguments
+    } do
+      expect_contract_code("0x6080")
+      state = %{state | json_rpc_named_arguments: json_rpc_named_arguments}
+
+      assert {:noreply, ^state} = BridgeDeposits.handle_continue(:check_contract_code, state)
+      assert_received :process_logs
+    end
+
+    defp expect_contract_code(code) do
+      expect(EthereumJSONRPC.Mox, :json_rpc, fn [
+                                                  %{
+                                                    id: id,
+                                                    method: "eth_getCode",
+                                                    params: [@contract_address, "latest"]
+                                                  }
+                                                ],
+                                                _options ->
+        {:ok, [%{id: id, result: code}]}
+      end)
     end
   end
 end
