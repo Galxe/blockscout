@@ -62,6 +62,9 @@ defmodule Explorer.Chain.Import.Stage.ChainTypeSpecific do
     ],
     stability: [
       Runner.Stability.Validators
+    ],
+    gravity: [
+      Runner.Gravity.BridgeDeposits
     ]
   }
 
