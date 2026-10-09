@@ -28,6 +28,7 @@ defmodule Explorer.Chain.Address.Counters do
   }
 
   alias Explorer.Chain.Beacon.Deposit, as: BeaconDeposit
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
   alias Explorer.Chain.Celo.ElectionReward, as: CeloElectionReward
 
   alias Explorer.Helper, as: ExplorerHelper
@@ -46,7 +47,8 @@ defmodule Explorer.Chain.Address.Counters do
     :logs,
     :withdrawals,
     :internal_transactions,
-    :beacon_deposits
+    :beacon_deposits,
+    :gravity_bridge_deposits
   ]
   @transactions_types [:transactions_from, :transactions_to, :transactions_contract]
 
@@ -471,6 +473,17 @@ defmodule Explorer.Chain.Address.Counters do
         )
       end
 
+    gravity_bridge_deposits_count_task =
+      if Application.get_env(:explorer, :chain_type) == :gravity do
+        configure_task(
+          :gravity_bridge_deposits,
+          cached_counters,
+          GravityBridgeDeposit.address_hash_to_deposits_query(address_hash),
+          address_hash,
+          options
+        )
+      end
+
     map =
       [
         validations_count_task,
@@ -483,7 +496,8 @@ defmodule Explorer.Chain.Address.Counters do
         withdrawals_count_task,
         internal_transactions_count_task,
         celo_election_rewards_count_task,
-        beacon_deposits_count_task
+        beacon_deposits_count_task,
+        gravity_bridge_deposits_count_task
       ]
       |> Enum.reject(&is_nil/1)
       |> Task.yield_many(:timer.seconds(1))

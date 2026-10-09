@@ -211,6 +211,9 @@ defmodule BlockScoutWeb.API.V2.AddressController do
     :ethereum ->
       @chain_type_counter_name_to_json_field_name %{beacon_deposits: :beacon_deposits_count}
 
+    :gravity ->
+      @chain_type_counter_name_to_json_field_name %{gravity_bridge_deposits: :gravity_bridge_deposits_count}
+
     _ ->
       @chain_type_counter_name_to_json_field_name %{}
   end

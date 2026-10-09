@@ -95,5 +95,18 @@ defmodule BlockScoutWeb.API.V2.Gravity.BridgeDepositControllerTest do
         assert json_response(request, 422)
       end
     end
+
+    describe "/addresses/{address_hash}/tabs-counters" do
+      test "counts consensus bridge deposits", %{conn: conn} do
+        recipient = insert(:address)
+        insert_list(2, :gravity_bridge_deposit, recipient_address_hash: recipient.hash)
+        hidden = insert(:gravity_bridge_deposit, recipient_address_hash: recipient.hash)
+        Repo.update_all(from(b in Block, where: b.hash == ^hidden.block_hash), set: [consensus: false])
+
+        request = get(conn, "/api/v2/addresses/#{recipient.hash}/tabs-counters")
+
+        assert %{"gravity_bridge_deposits_count" => 2} = json_response(request, 200)
+      end
+    end
   end
 end
