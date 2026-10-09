@@ -59,6 +59,9 @@ defmodule BlockScoutWeb.API.V2.AddressController do
   alias BlockScoutWeb.API.V2.CeloView
   alias Explorer.Chain.Celo.ElectionReward, as: CeloElectionReward
 
+  alias BlockScoutWeb.API.V2.Gravity.BridgeDepositController
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
+
   alias Indexer.Fetcher.OnDemand.CoinBalance, as: CoinBalanceOnDemand
   alias Indexer.Fetcher.OnDemand.ContractCode, as: ContractCodeOnDemand
   alias Indexer.Fetcher.OnDemand.TokenBalance, as: TokenBalanceOnDemand
@@ -1567,6 +1570,35 @@ defmodule BlockScoutWeb.API.V2.AddressController do
         deposits: deposits |> maybe_preload_ens_and_metadata(),
         next_page_params: next_page_params
       })
+    end
+  end
+
+  operation :gravity_bridge_deposits,
+    summary: "List Gravity bridge deposits received by a specific address",
+    description: "Retrieves native G credited to the address by the Gravity bridge (NativeMinted events).",
+    parameters:
+      base_params() ++
+        [address_hash_param()] ++
+        define_paging_params(["block_number", "index"]),
+    responses: [
+      ok:
+        {"Gravity bridge deposits for the specified address.", "application/json",
+         paginated_response(
+           items: Schemas.Gravity.BridgeDeposit,
+           next_page_params_example: %{"block_number" => 44_675_449, "index" => 3}
+         )},
+      unprocessable_entity: JsonErrorResponse.response(),
+      forbidden: ForbiddenResponse.response()
+    ]
+
+  @doc """
+  Handles `api/v2/addresses/:address_hash_param/gravity/bridge-deposits`.
+  """
+  @spec gravity_bridge_deposits(Plug.Conn.t(), map()) ::
+          {:format, :error} | {:restricted_access, true} | Plug.Conn.t()
+  def gravity_bridge_deposits(conn, %{address_hash_param: address_hash_param} = params) do
+    with {:ok, address_hash} <- validate_address_hash(address_hash_param, params) do
+      BridgeDepositController.render_list(conn, params, &GravityBridgeDeposit.from_address_hash(address_hash, &1))
     end
   end
 

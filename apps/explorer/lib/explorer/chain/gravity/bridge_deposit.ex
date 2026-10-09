@@ -12,7 +12,7 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
 
   use Explorer.Schema
 
-  alias Explorer.Repo
+  alias Explorer.{Chain, PagingOptions, Repo}
   alias Explorer.Chain.{Address, Block, Hash, Log, Wei}
 
   @event_signature "0x28a48d0161bbc70613fb99402d1437dea020d82e4495b003eb642c78fa4e2584"
@@ -92,4 +92,40 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
     |> Repo.all()
     |> Log.prepare_data()
   end
+
+  @doc """
+  Lists deposits credited to `address_hash`, newest first.
+  """
+  @spec from_address_hash(Hash.Address.t(), [Chain.paging_options() | Chain.necessity_by_association() | Chain.api?()]) ::
+          [t()]
+  def from_address_hash(address_hash, options \\ []) do
+    __MODULE__
+    |> where([deposit], deposit.recipient_address_hash == ^address_hash)
+    |> list(options)
+  end
+
+  defp list(query, options) do
+    paging_options = Keyword.get(options, :paging_options, Chain.default_paging_options())
+    necessity_by_association = Keyword.get(options, :necessity_by_association, %{})
+
+    query
+    |> consensus_query()
+    |> page_deposits(paging_options)
+    |> order_by([deposit], desc: deposit.block_number, desc: deposit.log_index)
+    |> limit(^paging_options.page_size)
+    |> preload([block: block], block: block)
+    |> Chain.join_associations(necessity_by_association)
+    |> Chain.select_repo(options).all()
+  end
+
+  # Deposits stay in the table when their block loses consensus; every read hides them.
+  defp consensus_query(query) do
+    join(query, :inner, [deposit], block in assoc(deposit, :block), as: :block, on: block.consensus == true)
+  end
+
+  defp page_deposits(query, %PagingOptions{key: {block_number, log_index}}) do
+    where(query, [deposit], {deposit.block_number, deposit.log_index} < {^block_number, ^log_index})
+  end
+
+  defp page_deposits(query, _paging_options), do: query
 end
