@@ -1812,6 +1812,11 @@ config :indexer, Indexer.Fetcher.Beacon.Deposit.Status,
   reference_timestamp:
     ConfigHelper.parse_integer_env_var("INDEXER_BEACON_DEPOSIT_STATUS_FETCHER_REFERENCE_TIMESTAMP", 1_722_024_023)
 
+config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits.Supervisor, disabled?: ConfigHelper.chain_type() != :gravity
+
+config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits,
+  contract_address: System.get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
+
 config :indexer, Indexer.Fetcher.Shibarium.L1,
   rpc: System.get_env("INDEXER_SHIBARIUM_L1_RPC"),
   start_block: System.get_env("INDEXER_SHIBARIUM_L1_START_BLOCK"),
