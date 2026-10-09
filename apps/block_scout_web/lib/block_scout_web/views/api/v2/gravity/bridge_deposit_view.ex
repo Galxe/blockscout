@@ -17,8 +17,7 @@ defmodule BlockScoutWeb.API.V2.Gravity.BridgeDepositView do
       "block_number" => deposit.block_number,
       "timestamp" => deposit.block.timestamp,
       "log_index" => deposit.log_index,
-      "recipient" =>
-        Helper.address_with_info(nil, deposit.recipient_address, deposit.recipient_address_hash, false),
+      "recipient" => Helper.address_with_info(nil, deposit.recipient_address, deposit.recipient_address_hash, false),
       "amount" => deposit.amount,
       "nonce" => deposit.nonce
     }

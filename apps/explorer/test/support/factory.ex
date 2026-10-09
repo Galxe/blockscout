@@ -49,6 +49,7 @@ defmodule Explorer.Factory do
     ContractMethod,
     Data,
     FheOperation,
+    Gravity.BridgeDeposit,
     Hash,
     InternalTransaction,
     InternalTransaction.DeleteQueue,
@@ -2014,7 +2015,7 @@ defmodule Explorer.Factory do
   def gravity_bridge_deposit_factory do
     transaction = insert(:transaction) |> with_block()
 
-    %Explorer.Chain.Gravity.BridgeDeposit{
+    %BridgeDeposit{
       block_hash: transaction.block_hash,
       block_number: transaction.block_number,
       transaction_hash: transaction.hash,
@@ -2035,7 +2036,7 @@ defmodule Explorer.Factory do
       :log,
       Map.merge(
         %{
-          first_topic: Explorer.Chain.Gravity.BridgeDeposit.event_signature(),
+          first_topic: BridgeDeposit.event_signature(),
           second_topic: %Hash{byte_count: 32, bytes: <<0::size(96), recipient_address_hash.bytes::binary>>},
           third_topic: %Hash{byte_count: 32, bytes: <<nonce::unsigned-big-integer-size(256)>>},
           fourth_topic: nil,

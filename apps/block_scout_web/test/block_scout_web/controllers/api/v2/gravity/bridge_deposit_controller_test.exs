@@ -6,8 +6,8 @@ defmodule BlockScoutWeb.API.V2.Gravity.BridgeDepositControllerTest do
   # ConnCase does not import Ecto.Query or alias Repo.
   import Ecto.Query, only: [from: 2]
 
-  alias Explorer.Repo
   alias Explorer.Chain.{Address, Block}
+  alias Explorer.Repo
 
   if @chain_type == :gravity do
     describe "/addresses/{address_hash}/gravity/bridge-deposits" do

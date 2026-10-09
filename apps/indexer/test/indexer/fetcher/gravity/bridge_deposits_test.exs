@@ -32,7 +32,12 @@ defmodule Indexer.Fetcher.Gravity.BridgeDepositsTest do
       insert(
         :gravity_bridge_deposit_log,
         Map.merge(
-          %{address: contract, transaction: transaction, block: transaction.block, block_number: transaction.block_number},
+          %{
+            address: contract,
+            transaction: transaction,
+            block: transaction.block,
+            block_number: transaction.block_number
+          },
           Map.new(attrs)
         )
       )

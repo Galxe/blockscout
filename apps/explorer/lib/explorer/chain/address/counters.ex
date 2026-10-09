@@ -28,8 +28,8 @@ defmodule Explorer.Chain.Address.Counters do
   }
 
   alias Explorer.Chain.Beacon.Deposit, as: BeaconDeposit
-  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
   alias Explorer.Chain.Celo.ElectionReward, as: CeloElectionReward
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
 
   alias Explorer.Helper, as: ExplorerHelper
   alias Explorer.Repo.LockTimeout
