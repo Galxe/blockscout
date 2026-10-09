@@ -2011,6 +2011,42 @@ defmodule Explorer.Factory do
     }
   end
 
+  def gravity_bridge_deposit_factory do
+    transaction = insert(:transaction) |> with_block()
+
+    %Explorer.Chain.Gravity.BridgeDeposit{
+      block_hash: transaction.block_hash,
+      block_number: transaction.block_number,
+      transaction_hash: transaction.hash,
+      log_index: sequence("gravity_bridge_deposit_log_index", & &1),
+      recipient_address_hash: insert(:address).hash,
+      amount: Wei.from(Decimal.new(50_000 * 10 ** 18), :wei),
+      nonce: Decimal.new(sequence("gravity_bridge_deposit_nonce", & &1))
+    }
+  end
+
+  def gravity_bridge_deposit_log_factory(attrs) do
+    recipient_address_hash = Map.get_lazy(attrs, :deposit_recipient_address_hash, fn -> insert(:address).hash end)
+    amount = Map.get(attrs, :deposit_amount, 50_000 * 10 ** 18)
+    nonce = Map.get_lazy(attrs, :deposit_nonce, fn -> sequence("gravity_bridge_deposit_log_nonce", & &1) end)
+    data = %Data{bytes: <<amount::unsigned-big-integer-size(256)>>}
+
+    build(
+      :log,
+      Map.merge(
+        %{
+          first_topic: Explorer.Chain.Gravity.BridgeDeposit.event_signature(),
+          second_topic: %Hash{byte_count: 32, bytes: <<0::size(96), recipient_address_hash.bytes::binary>>},
+          third_topic: %Hash{byte_count: 32, bytes: <<nonce::unsigned-big-integer-size(256)>>},
+          fourth_topic: nil,
+          data: data,
+          compressed_data: data
+        },
+        Map.drop(attrs, [:deposit_recipient_address_hash, :deposit_amount, :deposit_nonce])
+      )
+    )
+  end
+
   def fhe_operation_factory do
     transaction = insert(:transaction) |> with_block()
     block = transaction.block
