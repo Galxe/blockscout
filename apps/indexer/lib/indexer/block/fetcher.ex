@@ -69,6 +69,8 @@ defmodule Indexer.Block.Fetcher do
 
   alias Indexer.Transform.Optimism.Withdrawals, as: OptimismWithdrawals
 
+  alias Indexer.Transform.Gravity.BridgeDeposits, as: GravityBridgeDeposits
+
   alias Indexer.Transform.Scroll.L1FeeParams, as: ScrollL1FeeParams
 
   alias Indexer.Transform.Arbitrum.Messaging, as: ArbitrumMessaging
@@ -198,6 +200,8 @@ defmodule Indexer.Block.Fetcher do
          tokens = Enum.uniq(tokens ++ celo_tokens),
          %{fhe_operations: fhe_operations} = FheOperations.parse(logs),
          %{mint_transfers: mint_transfers} = MintTransfers.parse(logs),
+         gravity_bridge_deposits =
+           if(chain_type() == :gravity, do: GravityBridgeDeposits.parse(logs), else: []),
          optimism_withdrawals =
            if(callback_module == Indexer.Block.Realtime.Fetcher, do: OptimismWithdrawals.parse(logs), else: []),
          scroll_l1_fee_params =
@@ -220,6 +224,7 @@ defmodule Indexer.Block.Fetcher do
              blocks: blocks,
              logs: logs,
              mint_transfers: mint_transfers,
+             gravity_bridge_deposits: gravity_bridge_deposits,
              shibarium_bridge_operations: shibarium_bridge_operations,
              token_transfers: token_transfers,
              transactions: transactions_with_receipts,
@@ -232,7 +237,8 @@ defmodule Indexer.Block.Fetcher do
              blocks_params: blocks,
              logs_params: logs,
              transactions_params: transactions_with_receipts,
-             withdrawals: withdrawals_params
+             withdrawals: withdrawals_params,
+             gravity_bridge_deposits: gravity_bridge_deposits
            }
            |> AddressCoinBalances.params_set(),
          beneficiaries_with_gas_payment =
@@ -265,7 +271,8 @@ defmodule Indexer.Block.Fetcher do
              celo_epochs: celo_l1_epochs ++ celo_l2_epochs,
              celo_pending_account_operations: celo_pending_account_operations,
              arbitrum_messages: arbitrum_xlevel_messages,
-             stability_validators: stability_validators
+             stability_validators: stability_validators,
+             gravity_bridge_deposits: gravity_bridge_deposits
            }
            |> extend_with_zilliqa_import_options(filtered_fetched_blocks),
          {:ok, inserted} <-
@@ -405,6 +412,10 @@ defmodule Indexer.Block.Fetcher do
   defp do_import_options(:stability, basic_import_options, %{stability_validators: stability_validators}) do
     basic_import_options
     |> Map.put_new(:stability_validators, %{params: stability_validators})
+  end
+
+  defp do_import_options(:gravity, basic_import_options, %{gravity_bridge_deposits: gravity_bridge_deposits}) do
+    Map.put_new(basic_import_options, :gravity_bridge_deposits, %{params: gravity_bridge_deposits})
   end
 
   defp do_import_options(_chain_identity, basic_import_options, _chain_specific_import_options) do

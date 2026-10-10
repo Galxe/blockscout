@@ -1287,6 +1287,215 @@ defmodule Indexer.Block.FetcherTest do
     end
   end
 
+  if Application.compile_env(:explorer, :chain_type) == :gravity do
+    alias Explorer.Chain.Address.CoinBalance
+    alias Explorer.Chain.Gravity.BridgeDeposit
+
+    describe "import_range/2 gravity" do
+      @gravity_block_number 15_436_225
+      @gravity_block_hash "0x" <> String.duplicate("11", 32)
+      @gravity_transaction_hash "0x2722fae38750f61942fbdf5abf74ac1c0ed06d83a6660c5b7c375d08aa1237b4"
+      @gravity_contract "0x595475934ed7d9faa7fca28341c2ce583904a44e"
+      @gravity_recipient "0x491398ade3125c2ee33756f6d22d070589576c74"
+      @gravity_sender "0x00000000000000000000000000000001625f4000"
+
+      setup %{json_rpc_named_arguments: json_rpc_named_arguments} do
+        CoinBalanceCatchup.Supervisor.Case.start_supervised!(
+          json_rpc_named_arguments: json_rpc_named_arguments,
+          poll: false
+        )
+
+        ContractCode.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+        InternalTransaction.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+        Token.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+        TokenBalanceHistorical.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+        TokenBalanceCurrent.Supervisor.Case.start_supervised!(json_rpc_named_arguments: json_rpc_named_arguments)
+        ReplacedTransaction.Supervisor.Case.start_supervised!()
+        {:ok, _pid} = ContractCreatorOnDemand.start_link([[], []])
+        start_supervised!({Task.Supervisor, name: Indexer.TaskSupervisor})
+
+        UncleBlock.Supervisor.Case.start_supervised!(
+          block_fetcher: %Fetcher{
+            json_rpc_named_arguments: json_rpc_named_arguments,
+            task_supervisor: Indexer.TaskSupervisor
+          }
+        )
+
+        %{
+          block_fetcher: %Fetcher{
+            broadcast: false,
+            callback_module: Indexer.Block.Catchup.Fetcher,
+            json_rpc_named_arguments: json_rpc_named_arguments,
+            task_supervisor: Indexer.TaskSupervisor
+          }
+        }
+      end
+
+      defp gravity_word(integer), do: "0x" <> String.pad_leading(Integer.to_string(integer, 16), 64, "0")
+
+      defp gravity_log(log_index, data) do
+        %{
+          "address" => @gravity_contract,
+          "blockHash" => @gravity_block_hash,
+          "blockNumber" => integer_to_quantity(@gravity_block_number),
+          "data" => data,
+          "logIndex" => integer_to_quantity(log_index),
+          "removed" => false,
+          "topics" => [
+            BridgeDeposit.event_signature(),
+            "0x000000000000000000000000" <> String.trim_leading(@gravity_recipient, "0x"),
+            gravity_word(248 + div(log_index, 3) - 1)
+          ],
+          "transactionHash" => @gravity_transaction_hash,
+          "transactionIndex" => "0x0"
+        }
+      end
+
+      defp gravity_transaction do
+        %{
+          "blockHash" => @gravity_block_hash,
+          "blockNumber" => integer_to_quantity(@gravity_block_number),
+          "chainId" => "0x1f019",
+          "from" => @gravity_sender,
+          "gas" => "0x0",
+          "gasPrice" => "0x0",
+          "hash" => @gravity_transaction_hash,
+          "input" => "0x",
+          "nonce" => "0x0",
+          "r" => "0x0",
+          "s" => "0x0",
+          "to" => "0x00000000000000000000000000000001625f4000",
+          "transactionIndex" => "0x0",
+          "type" => "0x0",
+          "v" => "0x0",
+          "value" => "0x0"
+        }
+      end
+
+      defp gravity_block do
+        %{
+          "difficulty" => "0x0",
+          "extraData" => "0x",
+          "gasLimit" => "0x1c9c380",
+          "gasUsed" => "0x0",
+          "hash" => @gravity_block_hash,
+          "logsBloom" => "0x" <> String.duplicate("00", 256),
+          "miner" => "0x0000000000000000000000000000000000000000",
+          "mixHash" => "0x" <> String.duplicate("00", 32),
+          "nonce" => "0x0000000000000000",
+          "number" => integer_to_quantity(@gravity_block_number),
+          "parentHash" => "0x" <> String.duplicate("22", 32),
+          "receiptsRoot" => "0x" <> String.duplicate("00", 32),
+          "sha3Uncles" => "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+          "size" => "0x200",
+          "stateRoot" => "0x" <> String.duplicate("00", 32),
+          "timestamp" => "0x68630b02",
+          "totalDifficulty" => "0x0",
+          "transactions" => [gravity_transaction()],
+          "transactionsRoot" => "0x" <> String.duplicate("00", 32),
+          "uncles" => []
+        }
+      end
+
+      defp gravity_receipt(logs) do
+        %{
+          "blockHash" => @gravity_block_hash,
+          "blockNumber" => integer_to_quantity(@gravity_block_number),
+          "contractAddress" => nil,
+          "cumulativeGasUsed" => "0x0",
+          "effectiveGasPrice" => "0x0",
+          "from" => @gravity_sender,
+          "gasUsed" => "0x0",
+          "logs" => logs,
+          "logsBloom" => "0x" <> String.duplicate("00", 256),
+          "status" => "0x1",
+          "to" => "0x00000000000000000000000000000001625f4000",
+          "transactionHash" => @gravity_transaction_hash,
+          "transactionIndex" => "0x0",
+          "type" => "0x0"
+        }
+      end
+
+      # One handler for every request: the asynchronous fetchers started by the
+      # import send requests in an order that depends on the variant.
+      defp stub_gravity_node(logs) do
+        stub(EthereumJSONRPC.Mox, :json_rpc, fn
+          requests, _options when is_list(requests) -> {:ok, Enum.map(requests, &gravity_response(&1, logs))}
+          request, _options -> {:ok, gravity_response(request, logs).result}
+        end)
+      end
+
+      defp gravity_response(%{id: id, method: method}, logs) do
+        result =
+          case method do
+            "eth_getBlockByNumber" -> gravity_block()
+            "eth_getTransactionReceipt" -> gravity_receipt(logs)
+            "eth_getBlockReceipts" -> [gravity_receipt(logs)]
+            "eth_getBalance" -> "0x3635c9adc5dea00000"
+            "eth_getCode" -> "0x"
+            "eth_call" -> "0x"
+            _ -> []
+          end
+
+        %{id: id, jsonrpc: "2.0", result: result}
+      end
+
+      defp gravity_deposits do
+        Repo.all(from(d in BridgeDeposit, order_by: d.log_index))
+      end
+
+      test "imports the deposits, the recipient and one coin balance row per block", %{block_fetcher: block_fetcher} do
+        if block_fetcher.json_rpc_named_arguments[:transport] == EthereumJSONRPC.Mox do
+          stub_gravity_node(for log_index <- [3, 6, 9, 12], do: gravity_log(log_index, gravity_word(999 * 10 ** 18)))
+
+          assert {:ok, _} =
+                   Fetcher.fetch_and_import_range(block_fetcher, @gravity_block_number..@gravity_block_number)
+
+          assert [%{log_index: 3}, %{log_index: 6}, %{log_index: 9}, %{log_index: 12}] = deposits = gravity_deposits()
+          assert Enum.all?(deposits, &(to_string(&1.recipient_address_hash) == @gravity_recipient))
+          assert Enum.map(deposits, &Decimal.to_integer(&1.nonce)) == [248, 249, 250, 251]
+
+          {:ok, recipient_hash} = Chain.string_to_address_hash(@gravity_recipient)
+          assert Repo.get(Address, recipient_hash)
+
+          assert [%CoinBalance{block_number: @gravity_block_number}] =
+                   Repo.all(from(cb in CoinBalance, where: cb.address_hash == ^recipient_hash))
+        end
+      end
+
+      test "does not duplicate deposits when the block is imported again", %{block_fetcher: block_fetcher} do
+        if block_fetcher.json_rpc_named_arguments[:transport] == EthereumJSONRPC.Mox do
+          stub_gravity_node([gravity_log(3, gravity_word(999 * 10 ** 18))])
+
+          range = @gravity_block_number..@gravity_block_number
+          assert {:ok, _} = Fetcher.fetch_and_import_range(block_fetcher, range)
+          assert {:ok, _} = Fetcher.fetch_and_import_range(block_fetcher, range)
+
+          assert [%{log_index: 3}] = gravity_deposits()
+        end
+      end
+
+      test "imports the block and the valid deposits when a NativeMinted log is malformed", %{
+        block_fetcher: block_fetcher
+      } do
+        if block_fetcher.json_rpc_named_arguments[:transport] == EthereumJSONRPC.Mox do
+          stub_gravity_node([
+            gravity_log(3, gravity_word(999 * 10 ** 18)),
+            gravity_log(6, "0x"),
+            gravity_log(9, gravity_word(999 * 10 ** 18))
+          ])
+
+          assert {:ok, _} =
+                   Fetcher.fetch_and_import_range(block_fetcher, @gravity_block_number..@gravity_block_number)
+
+          assert Repo.get_by(Chain.Block, number: @gravity_block_number)
+          assert Repo.aggregate(Log, :count) == 3
+          assert [%{log_index: 3}, %{log_index: 9}] = gravity_deposits()
+        end
+      end
+    end
+  end
+
   defp wait_until(timeout, producer) do
     parent = self()
     ref = make_ref()
