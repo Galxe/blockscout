@@ -1818,6 +1818,17 @@ config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits,
   contract_address:
     ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
 
+gravity_bridge_contract =
+  ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
+
+if not Regex.match?(~r/\A0x[0-9a-fA-F]{40}\z/, gravity_bridge_contract) do
+  raise ArgumentError,
+        "INDEXER_GRAVITY_BRIDGE_CONTRACT must be a 0x-prefixed 20-byte hex address, got: " <>
+          inspect(gravity_bridge_contract)
+end
+
+config :indexer, Indexer.Transform.Gravity.BridgeDeposits, contract_address: gravity_bridge_contract
+
 config :indexer, Indexer.Fetcher.Shibarium.L1,
   rpc: System.get_env("INDEXER_SHIBARIUM_L1_RPC"),
   start_block: System.get_env("INDEXER_SHIBARIUM_L1_START_BLOCK"),
