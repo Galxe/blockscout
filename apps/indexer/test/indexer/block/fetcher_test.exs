@@ -5,7 +5,8 @@ defmodule Indexer.Block.FetcherTest do
   use Explorer.DataCase
 
   use Utils.CompileTimeEnvHelper,
-    chain_identity: [:explorer, :chain_identity]
+    chain_identity: [:explorer, :chain_identity],
+    chain_type: [:explorer, :chain_type]
 
   import Mox
   import EthereumJSONRPC, only: [integer_to_quantity: 1]
@@ -1287,7 +1288,7 @@ defmodule Indexer.Block.FetcherTest do
     end
   end
 
-  if Application.compile_env(:explorer, :chain_type) == :gravity do
+  if @chain_type == :gravity do
     alias Explorer.Chain.Address.CoinBalance
     alias Explorer.Chain.Gravity.BridgeDeposit
 
