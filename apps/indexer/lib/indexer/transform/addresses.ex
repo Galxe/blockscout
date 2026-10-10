@@ -172,6 +172,12 @@ defmodule Indexer.Transform.Addresses do
         %{from: :to_address_hash, to: :hash}
       ]
     ],
+    gravity_bridge_deposits: [
+      [
+        %{from: :block_number, to: :fetched_coin_balance_block_number},
+        %{from: :recipient_address_hash, to: :hash}
+      ]
+    ],
     block_reward_contract_beneficiaries: [
       [
         %{from: :block_number, to: :fetched_coin_balance_block_number},
@@ -597,6 +603,12 @@ defmodule Indexer.Transform.Addresses do
             %{
               required(:from_address_hash) => String.t(),
               required(:to_address_hash) => String.t(),
+              required(:block_number) => non_neg_integer()
+            }
+          ],
+          optional(:gravity_bridge_deposits) => [
+            %{
+              required(:recipient_address_hash) => String.t(),
               required(:block_number) => non_neg_integer()
             }
           ],

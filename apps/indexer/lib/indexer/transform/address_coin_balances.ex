@@ -84,6 +84,13 @@ defmodule Indexer.Transform.AddressCoinBalances do
     end)
   end
 
+  defp reducer({:gravity_bridge_deposits, deposits}, acc) when is_list(deposits) do
+    Enum.into(deposits, acc, fn %{recipient_address_hash: address_hash, block_number: block_number}
+                               when is_binary(address_hash) and is_integer(block_number) ->
+      %{address_hash: address_hash, block_number: block_number}
+    end)
+  end
+
   # Handles Arc chain type logs.
   #
   # ## Parameters
