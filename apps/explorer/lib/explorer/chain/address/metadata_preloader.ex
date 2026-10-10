@@ -12,6 +12,7 @@ defmodule Explorer.Chain.Address.MetadataPreloader do
     AdvancedFilter,
     Beacon.Deposit,
     Block,
+    Gravity.BridgeDeposit,
     InternalTransaction,
     Log,
     Token.Instance,
@@ -380,6 +381,10 @@ defmodule Explorer.Chain.Address.MetadataPreloader do
     [to_string(contract_address_hash)]
   end
 
+  defp item_to_address_hash_strings(%BridgeDeposit{recipient_address_hash: recipient_address_hash}) do
+    [to_string(recipient_address_hash)]
+  end
+
   defp put_ens_names(names, items) do
     Enum.map(items, &put_meta_to_item(&1, names, :ens_domain_name))
   end
@@ -533,6 +538,18 @@ defmodule Explorer.Chain.Address.MetadataPreloader do
     %HotSmartContracts{
       hot_contract
       | contract_address: alter_address(contract_address, contract_address_hash, names, field_to_put_info)
+    }
+  end
+
+  defp put_meta_to_item(
+         %BridgeDeposit{recipient_address: recipient_address, recipient_address_hash: recipient_address_hash} =
+           deposit,
+         names,
+         field_to_put_info
+       ) do
+    %BridgeDeposit{
+      deposit
+      | recipient_address: alter_address(recipient_address, recipient_address_hash, names, field_to_put_info)
     }
   end
 

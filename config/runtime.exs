@@ -1036,6 +1036,11 @@ config :explorer, Explorer.Migrator.FillInternalTransactionsAddressIds,
   concurrency: ConfigHelper.parse_integer_env_var("MIGRATION_FILL_INTERNAL_TRANSACTIONS_ADDRESS_IDS_CONCURRENCY", 10),
   timeout: ConfigHelper.parse_time_env_var("MIGRATION_FILL_INTERNAL_TRANSACTIONS_ADDRESS_IDS_TIMEOUT", "5s")
 
+config :explorer, Explorer.Migrator.DeleteNonConsensusLogs,
+  batch_size: ConfigHelper.parse_integer_env_var("MIGRATION_DELETE_NON_CONSENSUS_LOGS_BATCH_SIZE", 100),
+  concurrency: ConfigHelper.parse_integer_env_var("MIGRATION_DELETE_NON_CONSENSUS_LOGS_CONCURRENCY", 10),
+  timeout: ConfigHelper.parse_time_env_var("MIGRATION_DELETE_NON_CONSENSUS_LOGS_TIMEOUT", "0s")
+
 config :explorer, Explorer.Migrator.TransactionHasTokenTransfers,
   enabled: ConfigHelper.parse_bool_env_var("MIGRATION_TRANSACTION_HAS_TOKEN_TRANSFERS_ENABLED", "true"),
   batch_size: ConfigHelper.parse_integer_env_var("MIGRATION_TRANSACTION_HAS_TOKEN_TRANSFERS_BATCH_SIZE", 30),
@@ -1806,6 +1811,17 @@ config :indexer, Indexer.Fetcher.Beacon.Deposit.Status,
   epoch_duration: ConfigHelper.parse_integer_env_var("INDEXER_BEACON_DEPOSIT_STATUS_FETCHER_EPOCH_DURATION", 384),
   reference_timestamp:
     ConfigHelper.parse_integer_env_var("INDEXER_BEACON_DEPOSIT_STATUS_FETCHER_REFERENCE_TIMESTAMP", 1_722_024_023)
+
+gravity_bridge_contract =
+  ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
+
+if not Regex.match?(~r/\A0x[0-9a-fA-F]{40}\z/, gravity_bridge_contract) do
+  raise ArgumentError,
+        "INDEXER_GRAVITY_BRIDGE_CONTRACT must be a 0x-prefixed 20-byte hex address, got: " <>
+          inspect(gravity_bridge_contract)
+end
+
+config :indexer, Indexer.Transform.Gravity.BridgeDeposits, contract_address: gravity_bridge_contract
 
 config :indexer, Indexer.Fetcher.Shibarium.L1,
   rpc: System.get_env("INDEXER_SHIBARIUM_L1_RPC"),

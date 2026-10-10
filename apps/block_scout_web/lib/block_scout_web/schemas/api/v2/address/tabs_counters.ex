@@ -33,6 +33,9 @@ defmodule BlockScoutWeb.Schemas.API.V2.Address.TabsCounters do
     :ethereum ->
       @chain_type_properties %{beacon_deposits_count: %Schema{type: :integer, nullable: false}}
 
+    :gravity ->
+      @chain_type_properties %{gravity_bridge_deposits_count: %Schema{type: :integer, nullable: false}}
+
     _ ->
       @chain_type_properties %{}
   end
