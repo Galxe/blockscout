@@ -12,8 +12,8 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
 
   use Explorer.Schema
 
-  alias Explorer.{Chain, PagingOptions, Repo}
-  alias Explorer.Chain.{Address, Block, Hash, Log, Wei}
+  alias Explorer.{Chain, PagingOptions}
+  alias Explorer.Chain.{Address, Block, Hash, Wei}
 
   @event_signature "0x28a48d0161bbc70613fb99402d1437dea020d82e4495b003eb642c78fa4e2584"
 
@@ -48,50 +48,6 @@ defmodule Explorer.Chain.Gravity.BridgeDeposit do
 
   @spec event_signature() :: String.t()
   def event_signature, do: @event_signature
-
-  @doc """
-  Returns up to `limit` NativeMinted logs of `contract_address_hash` in
-  consensus blocks that have no deposit row yet, oldest first.
-
-  Looking for missing rows instead of keeping a cursor makes the result
-  independent of the order in which blocks were indexed (catchup indexes from
-  the head backwards), so the same call serves the backfill and new blocks.
-  """
-  @spec unprocessed_logs(Hash.Address.t(), pos_integer()) :: [map()]
-  def unprocessed_logs(contract_address_hash, limit) do
-    contract_address_hash
-    |> Log.address_match_union_query(
-      fn address_match_dynamic ->
-        Log
-        |> Log.join_transaction_query()
-        |> where(^address_match_dynamic)
-        |> where(as(:transaction).block_consensus == true)
-        |> Log.filter_by_topic_query(:first_topic, @event_signature)
-        |> join(:left, [log, transaction: transaction], deposit in __MODULE__,
-          as: :deposit,
-          on: deposit.block_hash == transaction.block_hash and deposit.log_index == log.index
-        )
-        |> where([deposit: deposit], is_nil(deposit.block_hash))
-        |> select([log, transaction: transaction], %{
-          block_number: log.block_number,
-          block_hash: transaction.block_hash,
-          transaction_hash: transaction.hash,
-          index: log.index,
-          second_topic: log.second_topic,
-          third_topic: log.third_topic,
-          data: log.data,
-          compressed_data: log.compressed_data
-        })
-      end,
-      fn query ->
-        query
-        |> order_by([log], asc: log.block_number, asc: log.index)
-        |> limit(^limit)
-      end
-    )
-    |> Repo.all()
-    |> Log.prepare_data()
-  end
 
   @doc """
   Lists deposits credited to `address_hash`, newest first.

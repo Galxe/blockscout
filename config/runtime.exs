@@ -1812,12 +1812,6 @@ config :indexer, Indexer.Fetcher.Beacon.Deposit.Status,
   reference_timestamp:
     ConfigHelper.parse_integer_env_var("INDEXER_BEACON_DEPOSIT_STATUS_FETCHER_REFERENCE_TIMESTAMP", 1_722_024_023)
 
-config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits.Supervisor, disabled?: ConfigHelper.chain_type() != :gravity
-
-config :indexer, Indexer.Fetcher.Gravity.BridgeDeposits,
-  contract_address:
-    ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
-
 gravity_bridge_contract =
   ConfigHelper.safe_get_env("INDEXER_GRAVITY_BRIDGE_CONTRACT", "0x595475934ed7d9faa7fca28341c2ce583904a44e")
 
