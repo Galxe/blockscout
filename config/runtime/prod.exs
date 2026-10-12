@@ -125,6 +125,7 @@ for repo <- [
       Explorer.Repo.Blackfort,
       Explorer.Repo.Celo,
       Explorer.Repo.Filecoin,
+      Explorer.Repo.Gravity,
       Explorer.Repo.Optimism,
       Explorer.Repo.PolygonEdge,
       Explorer.Repo.RSK,

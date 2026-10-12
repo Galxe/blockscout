@@ -47,6 +47,7 @@ defmodule Explorer.Factory do
     ContractMethod,
     Data,
     FheOperation,
+    Gravity.BridgeDeposit,
     Hash,
     InternalTransaction,
     InternalTransaction.DeleteQueue,
@@ -1909,6 +1910,20 @@ defmodule Explorer.Factory do
       from_address: insert(:address),
       block: transaction.block,
       transaction: transaction
+    }
+  end
+
+  def gravity_bridge_deposit_factory do
+    transaction = insert(:transaction) |> with_block()
+
+    %BridgeDeposit{
+      block_hash: transaction.block_hash,
+      block_number: transaction.block_number,
+      transaction_hash: transaction.hash,
+      log_index: sequence("gravity_bridge_deposit_log_index", & &1),
+      recipient_address_hash: insert(:address).hash,
+      amount: Wei.from(Decimal.new(50_000 * 10 ** 18), :wei),
+      nonce: Decimal.new(sequence("gravity_bridge_deposit_nonce", & &1))
     }
   end
 

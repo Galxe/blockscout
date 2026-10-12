@@ -202,6 +202,10 @@ defmodule BlockScoutWeb.Routers.ApiRouter do
       if @chain_type == :ethereum do
         get("/:transaction_hash_param/beacon/deposits", V2.TransactionController, :beacon_deposits)
       end
+
+      if @chain_type == :gravity do
+        get("/:transaction_hash_param/gravity/bridge-deposits", V2.TransactionController, :gravity_bridge_deposits)
+      end
     end
 
     scope "/token-transfers" do
@@ -266,6 +270,10 @@ defmodule BlockScoutWeb.Routers.ApiRouter do
 
       if @chain_type == :ethereum do
         get("/:address_hash_param/beacon/deposits", V2.AddressController, :beacon_deposits)
+      end
+
+      if @chain_type == :gravity do
+        get("/:address_hash_param/gravity/bridge-deposits", V2.AddressController, :gravity_bridge_deposits)
       end
     end
 

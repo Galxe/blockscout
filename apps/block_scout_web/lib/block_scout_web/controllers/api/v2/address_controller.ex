@@ -45,6 +45,7 @@ defmodule BlockScoutWeb.API.V2.AddressController do
     BlockView,
     Ethereum.DepositController,
     Ethereum.DepositView,
+    Gravity.BridgeDepositController,
     TransactionView,
     WithdrawalView
   }
@@ -60,6 +61,8 @@ defmodule BlockScoutWeb.API.V2.AddressController do
 
   alias BlockScoutWeb.API.V2.CeloView
   alias Explorer.Chain.Celo.ElectionReward, as: CeloElectionReward
+
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
 
   alias Indexer.Fetcher.OnDemand.CoinBalance, as: CoinBalanceOnDemand
   alias Indexer.Fetcher.OnDemand.ContractCode, as: ContractCodeOnDemand
@@ -149,6 +152,14 @@ defmodule BlockScoutWeb.API.V2.AddressController do
       [token: reputation_association()] => :optional
     }
   ]
+
+  case @chain_type do
+    :gravity ->
+      @chain_type_counter_name_to_json_field_name %{gravity_bridge_deposits: :gravity_bridge_deposits_count}
+
+    _ ->
+      @chain_type_counter_name_to_json_field_name %{}
+  end
 
   @spec contract_address_preloads() :: [keyword()]
   defp contract_address_preloads do
@@ -1158,17 +1169,21 @@ defmodule BlockScoutWeb.API.V2.AddressController do
   @spec tabs_counters(Plug.Conn.t(), map()) :: {:format, :error} | {:restricted_access, true} | Plug.Conn.t()
   def tabs_counters(conn, %{address_hash_param: address_hash_string} = params) do
     with {:ok, address_hash} <- validate_address_hash(address_hash_string, params) do
-      counter_name_to_json_field_name = %{
-        validations: :validations_count,
-        transactions: :transactions_count,
-        token_transfers: :token_transfers_count,
-        token_balances: :token_balances_count,
-        logs: :logs_count,
-        withdrawals: :withdrawals_count,
-        internal_transactions: :internal_transactions_count,
-        celo_election_rewards: :celo_election_rewards_count,
-        beacon_deposits: :beacon_deposits_count
-      }
+      counter_name_to_json_field_name =
+        Map.merge(
+          %{
+            validations: :validations_count,
+            transactions: :transactions_count,
+            token_transfers: :token_transfers_count,
+            token_balances: :token_balances_count,
+            logs: :logs_count,
+            withdrawals: :withdrawals_count,
+            internal_transactions: :internal_transactions_count,
+            celo_election_rewards: :celo_election_rewards_count,
+            beacon_deposits: :beacon_deposits_count
+          },
+          @chain_type_counter_name_to_json_field_name
+        )
 
       case Chain.hash_to_address(address_hash, @address_options) do
         {:ok, _address} ->
@@ -1568,6 +1583,35 @@ defmodule BlockScoutWeb.API.V2.AddressController do
         deposits: deposits |> maybe_preload_ens() |> maybe_preload_metadata(),
         next_page_params: next_page_params
       })
+    end
+  end
+
+  operation :gravity_bridge_deposits,
+    summary: "List Gravity bridge deposits received by a specific address",
+    description: "Retrieves native G credited to the address by the Gravity bridge (NativeMinted events).",
+    parameters:
+      base_params() ++
+        [address_hash_param()] ++
+        define_paging_params(["block_number", "index", "items_count"]),
+    responses: [
+      ok:
+        {"Gravity bridge deposits for the specified address.", "application/json",
+         paginated_response(
+           items: Schemas.Gravity.BridgeDeposit,
+           next_page_params_example: %{"block_number" => 44_675_449, "index" => 3, "items_count" => 50}
+         )},
+      unprocessable_entity: JsonErrorResponse.response(),
+      forbidden: ForbiddenResponse.response()
+    ]
+
+  @doc """
+  Handles `api/v2/addresses/:address_hash_param/gravity/bridge-deposits`.
+  """
+  @spec gravity_bridge_deposits(Plug.Conn.t(), map()) ::
+          {:format, :error} | {:restricted_access, true} | Plug.Conn.t()
+  def gravity_bridge_deposits(conn, %{address_hash_param: address_hash_param} = params) do
+    with {:ok, address_hash} <- validate_address_hash(address_hash_param, params) do
+      BridgeDepositController.render_list(conn, params, &GravityBridgeDeposit.from_address_hash(address_hash, &1))
     end
   end
 
