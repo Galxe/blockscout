@@ -143,6 +143,7 @@ defmodule Explorer.Repo do
         Explorer.Repo.Blackfort,
         Explorer.Repo.Celo,
         Explorer.Repo.Filecoin,
+        Explorer.Repo.Gravity,
         Explorer.Repo.Mud,
         Explorer.Repo.Optimism,
         Explorer.Repo.PolygonEdge,

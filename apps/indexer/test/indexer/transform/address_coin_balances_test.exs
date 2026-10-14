@@ -245,5 +245,22 @@ defmodule Indexer.Transform.AddressCoinBalancesTest do
       assert MapSet.member?(params_set, %{address_hash: from_address_hash, block_number: block_number})
       assert MapSet.member?(params_set, %{address_hash: to_address_hash, block_number: block_number})
     end
+
+    test "with gravity bridge deposits extracts each recipient once per block" do
+      recipient = "0x491398ade3125c2ee33756f6d22d070589576c74"
+      other_recipient = "0x110a1e100259d51352bce66b22f3c8ae415b14fb"
+
+      deposits = [
+        %{recipient_address_hash: recipient, block_number: 15_436_225, log_index: 3},
+        %{recipient_address_hash: recipient, block_number: 15_436_225, log_index: 6},
+        %{recipient_address_hash: other_recipient, block_number: 15_437_908, log_index: 3}
+      ]
+
+      assert AddressCoinBalances.params_set(%{gravity_bridge_deposits: deposits}) ==
+               MapSet.new([
+                 %{address_hash: recipient, block_number: 15_436_225},
+                 %{address_hash: other_recipient, block_number: 15_437_908}
+               ])
+    end
   end
 end

@@ -7,9 +7,12 @@ defmodule Explorer.Chain.Address.CoinBalance do
 
   use Explorer.Schema
 
+  use Utils.RuntimeEnvHelper, chain_type: [:explorer, :chain_type]
+
   alias Explorer.{Chain, PagingOptions, Repo}
   alias Explorer.Chain.{Address, Block, Hash, InternalTransaction, Transaction, Wei}
   alias Explorer.Chain.Address.CoinBalance
+  alias Explorer.Chain.Gravity.BridgeDeposit, as: GravityBridgeDeposit
 
   @optional_fields ~w(value value_fetched_at)a
   @required_fields ~w(address_hash block_number)a
@@ -288,11 +291,27 @@ defmodule Explorer.Chain.Address.CoinBalance do
       |> Chain.select_repo(options).one()
 
     if is_nil(transaction_hash) do
-      balance
-      |> preload_internal_transaction_query()
-      |> Chain.select_repo(options).one()
+      if chain_type() == :gravity do
+        preload_gravity_bridge_deposit_transaction_hash(balance, options)
+      else
+        balance
+        |> preload_internal_transaction_query()
+        |> Chain.select_repo(options).one()
+      end
     else
       transaction_hash
+    end
+  end
+
+  # On Gravity, native G bridged in from Ethereum is credited by the mint precompile
+  # without a value transfer; the bridge deposit links the balance change to the
+  # system transaction that carried the bridge message.
+  defp preload_gravity_bridge_deposit_transaction_hash(balance, options) do
+    repo = Chain.select_repo(options)
+
+    case repo.one(GravityBridgeDeposit.transaction_hash_query(balance.address_hash, balance.block_number)) do
+      nil -> balance |> preload_internal_transaction_query() |> repo.one()
+      transaction_hash -> transaction_hash
     end
   end
 
